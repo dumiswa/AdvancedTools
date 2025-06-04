@@ -73,7 +73,7 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _Amplitude: 0.29
+    - _Amplitude: 0.56
     - _BumpScale: 1
     - _Cutoff: 0.5
     - _DetailNormalMapScale: 1
@@ -82,20 +82,22 @@ Material:
     - _FoamThreshold: 0.321
     - _Frequency: 1
     - _GlossMapScale: 1
-    - _Glossiness: 1
+    - _Glossiness: 0.82
     - _GlossyReflections: 1
-    - _Metallic: 0.25
+    - _Metallic: 0.48
     - _Mode: 0
-    - _NormalStrength: 1
+    - _NormalStrength: 0.45
     - _OcclusionStrength: 1
     - _Parallax: 0.02
-    - _Scale: 0.16
+    - _Scale: 0.43
     - _SmoothnessTextureChannel: 0
-    - _SoftFactor: 1
+    - _SoftFactor: 0.71
     - _SpecularHighlights: 1
-    - _Speed: 0.3
+    - _Speed: 2.75
     - _SrcBlend: 1
+    - _Steepness: 0.5
     - _UVSec: 0
+    - _WaveCount: 4
     - _ZWrite: 1
     m_Colors:
     - _Color: {r: 0.286942, g: 0.49176297, b: 0.79622644, a: 1}
