@@ -13,6 +13,10 @@ Shader "Custom/WaterShader"
         _NormalSpeed1 ("Normal Speed 1", Vector) = (0.05, 0.02, 0, 0)
         _NormalSpeed2 ("Normal Speed 2", Vector) = (-0.03, 0.04, 0, 0)
         _NormalStrength ("Normal Strength", Float) = 1.0
+
+        _FoamColor ("Foam Color", Color) = (1,1,1,1)
+        _FoamThreshold ("Foam Threshold", Range(0, 1)) = 0.6
+        _FoamIntensity ("Foam Intensity", Range(0, 2)) = 1.0
     }
 
     SubShader
@@ -53,6 +57,11 @@ Shader "Custom/WaterShader"
             float4 _NormalSpeed2;
             float _NormalStrength;
 
+            fixed4 _FoamColor;
+            float _FoamThreshold;
+            float _FoamIntensity;
+
+
             v2f vert(appdata v)
             {
                 v2f o;
@@ -73,31 +82,35 @@ Shader "Custom/WaterShader"
                 return o;
             }
 
-          fixed4 frag(v2f i) : SV_Target
+            fixed4 frag(v2f i) : SV_Target
             {
-                // Sample both normals and blend with weights
+                // Sample and blend normals
                 float3 n1 = UnpackNormal(tex2D(_NormalTex1, i.uv1));
                 float3 n2 = UnpackNormal(tex2D(_NormalTex2, i.uv2));
-
-                // Blend the normals equally
                 float3 blendedNormal = normalize(n1 + n2);
-
-                // Optional: strengthen bump intensity
                 blendedNormal.xy *= _NormalStrength;
                 blendedNormal.z = sqrt(1.0 - saturate(dot(blendedNormal.xy, blendedNormal.xy)));
                 blendedNormal = normalize(blendedNormal);
 
-                // World light approximation
+                // Lighting
                 float3 lightDir = normalize(float3(0.3, 1, 0.5));
+                float NdotL = saturate(dot(blendedNormal, lightDir));
+                float ambient = 0.2;
+                float rim = pow(1.0 - NdotL, 2.0);
+                float lighting = lerp(ambient, 1.0, NdotL) + rim * 0.2;
 
-                // Simple Lambert lighting
-                float lighting = saturate(dot(blendedNormal, lightDir));
+                // Sample noise
+                float noise = tex2D(_NoiseTex, i.uvNoise).r;
 
-                // Final color
-                fixed4 finalColor = _Color * lighting;
-                return finalColor;
+                // Foam mask based on normal steepness and noise
+                float foamMask = saturate((1.0 - blendedNormal.z - _FoamThreshold) * _FoamIntensity);
+                foamMask *= noise;
+
+                // Combine foam and water color
+                fixed4 waterColor = _Color * lighting;
+                fixed4 foam = _FoamColor * foamMask;
+                return lerp(waterColor, foam, foamMask);
             }
-
             ENDCG
         }
     }
