@@ -2,116 +2,83 @@ Shader "Custom/WaterShader"
 {
     Properties
     {
-        _Color ("Water Color", Color) = (0.0, 0.5, 1.0, 1.0)
-        _Amplitude ("Wave Amplitude", Float) = 0.1
-        _Frequency ("Wave Frequency", Float) = 1.0
-        _Speed ("Wave Speed", Float) = 1.0
+        _Color ("Color", Color) = (1,1,1,1)
+        _NormalTex1 ("Normal texture 1", 2D) = "bump" {}
+        _NormalTex2 ("Normal texture 2", 2D) = "bump" {}
+        _NoiseTex ("Noise texture", 2D) = "white" {}
+        _Glossiness ("Smoothness", Range(0,1)) = 0.5
+        _Metallic ("Metallic", Range(0,1)) = 0.0
 
-        _NormalTex1 ("Normal Map 1", 2D) = "bump" {}
-        _NormalTex2 ("Normal Map 2", 2D) = "bump" {}
-        _NoiseTex ("Noise Texture", 2D) = "white" {}
-        _NormalSpeed1 ("Normal Speed 1", Vector) = (0.05, 0.02, 0, 0)
-        _NormalSpeed2 ("Normal Speed 2", Vector) = (-0.03, 0.04, 0, 0)
-        _NormalStrength ("Normal Strength", Float) = 1.0
-
-        _FoamColor ("Foam Color", Color) = (1,1,1,1)
-        _FoamThreshold ("Foam Threshold", Range(0, 1)) = 0.6
-        _FoamIntensity ("Foam Intensity", Range(0, 2)) = 1.0
+        _Scale ("Noise scale", Range(0.1, 1)) = 1
+        _Amplitude ("Amplitude", Range(0.1, 1)) = 0.01
+        _Speed ("Speed", Range(0.01, 0.3)) = 0.15
+        _NormalStrength ("Normal Strength", Range(0, 1)) = 0.5
+        _SoftFactor("Soft Factor", Range(0.01, 3.0)) = 1.0
     }
-
     SubShader
     {
-        Tags { "RenderType"="Opaque" }
+        Tags { "RenderType"="Opaque" "ForceNoShadowCasting" = "True"}
         LOD 200
 
-        Pass
+        CGPROGRAM
+        #pragma surface surf Standard fullforwardshadows alpha vertex:vert
+
+        #pragma target 3.0
+
+        sampler2D _NormalTex1;
+        sampler2D _NormalTex2;
+        sampler2D _NoiseTex;
+        sampler2D _CameraDepthTexture;
+
+        float _Scale;
+        float _Amplitude;
+        float _Speed;
+        float _NormalStrength;
+        float _SoftFactor;
+
+        half _Glossiness;
+        half _Metallic;
+        fixed4 _Color;
+
+        struct Input
         {
-            CGPROGRAM
-            #pragma vertex vert
-            #pragma fragment frag
-            #include "UnityCG.cginc"
+            float2 uv_NormalTex1;
+            float4 screenPos;
+            float eyeDepth;
+        };
 
-            struct appdata
-            {
-                float4 vertex : POSITION;
-                float2 uv : TEXCOORD0;
-            };
-
-            struct v2f
-            {
-                float4 pos : SV_POSITION;
-                float2 uv1 : TEXCOORD0;
-                float2 uv2 : TEXCOORD1;
-                float2 uvNoise : TEXCOORD2;
-            };
-
-            fixed4 _Color;
-            float _Amplitude;
-            float _Frequency;
-            float _Speed;
-
-            sampler2D _NormalTex1;
-            sampler2D _NormalTex2;
-            sampler2D _NoiseTex;
-            float4 _NormalSpeed1;
-            float4 _NormalSpeed2;
-            float _NormalStrength;
-
-            fixed4 _FoamColor;
-            float _FoamThreshold;
-            float _FoamIntensity;
-
-
-            v2f vert(appdata v)
-            {
-                v2f o;
-
-                float3 worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
-                float wave = sin((worldPos.x + worldPos.z) * _Frequency + _Time.y * _Speed) * _Amplitude;
-
-                float3 displaced = v.vertex.xyz;
-                displaced.y += wave;
-
-                o.pos = UnityObjectToClipPos(float4(displaced, 1.0));
-
-                // UV offset based on time and speed
-                o.uv1 = v.uv + _Time.y * _NormalSpeed1.xy;
-                o.uv2 = v.uv + _Time.y * _NormalSpeed2.xy;
-                o.uvNoise = v.uv;
-
-                return o;
-            }
-
-            fixed4 frag(v2f i) : SV_Target
-            {
-                // Sample and blend normals
-                float3 n1 = UnpackNormal(tex2D(_NormalTex1, i.uv1));
-                float3 n2 = UnpackNormal(tex2D(_NormalTex2, i.uv2));
-                float3 blendedNormal = normalize(n1 + n2);
-                blendedNormal.xy *= _NormalStrength;
-                blendedNormal.z = sqrt(1.0 - saturate(dot(blendedNormal.xy, blendedNormal.xy)));
-                blendedNormal = normalize(blendedNormal);
-
-                // Lighting
-                float3 lightDir = normalize(float3(0.3, 1, 0.5));
-                float NdotL = saturate(dot(blendedNormal, lightDir));
-                float ambient = 0.2;
-                float rim = pow(1.0 - NdotL, 2.0);
-                float lighting = lerp(ambient, 1.0, NdotL) + rim * 0.2;
-
-                // Sample noise
-                float noise = tex2D(_NoiseTex, i.uvNoise).r;
-
-                // Foam mask based on normal steepness and noise
-                float foamMask = saturate((1.0 - blendedNormal.z - _FoamThreshold) * _FoamIntensity);
-                foamMask *= noise;
-
-                // Combine foam and water color
-                fixed4 waterColor = _Color * lighting;
-                fixed4 foam = _FoamColor * foamMask;
-                return lerp(waterColor, foam, foamMask);
-            }
-            ENDCG
+        void vert(inout appdata_full v, out Input o)
+        {
+            COMPUTE_EYEDEPTH(o.eyeDepth);
+            UNITY_INITIALIZE_OUTPUT(Input, o);
         }
+
+
+        void surf (Input IN, inout SurfaceOutputStandard o)
+        {
+            o.Albedo = _Color.rgb;
+            o.Metallic = _Metallic;
+            o.Smoothness = _Glossiness;
+
+            // Depth
+            float rawZ = SAMPLE_DEPTH_TEXTURE_PROJ(_CameraDepthTexture, UNITY_PROJ_COORD(IN.screenPos));
+            float sceneZ = LinearEyeDepth(rawZ);
+            float partZ = IN.eyeDepth;
+
+            float fade = saturate(_SoftFactor * (sceneZ - partZ));
+
+            o.Alpha = fade * 0.5;
+
+            //Normal Maps
+            float normalUVX = IN.uv_NormalTex1.x + sin(_Time) * 5;
+            float normalUVY = IN.uv_NormalTex1.y + sin(_Time) * 5;
+
+            float2 normalUV1 = float2(normalUVX, IN.uv_NormalTex1.y);
+            float2 normalUV2 = float2(IN.uv_NormalTex1.x, normalUVY);
+
+            o.Normal = UnpackNormal((tex2D(_NormalTex1, normalUV1) + tex2D(_NormalTex2, normalUV2)) * _NormalStrength * fade);
+        }
+        ENDCG
     }
+    FallBack "Diffuse"
 }
