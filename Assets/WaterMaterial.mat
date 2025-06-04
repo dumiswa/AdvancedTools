@@ -73,27 +73,27 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _Amplitude: 0.56
+    - _Amplitude: 0.479
     - _BumpScale: 1
     - _Cutoff: 0.5
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
-    - _FoamIntensity: 0.812
-    - _FoamThreshold: 0.321
+    - _FoamIntensity: 6
+    - _FoamThreshold: 0.53
     - _Frequency: 1
     - _GlossMapScale: 1
-    - _Glossiness: 0.82
+    - _Glossiness: 1
     - _GlossyReflections: 1
-    - _Metallic: 0.48
+    - _Metallic: 0.24
     - _Mode: 0
-    - _NormalStrength: 0.45
+    - _NormalStrength: 0.3
     - _OcclusionStrength: 1
     - _Parallax: 0.02
-    - _Scale: 0.43
+    - _Scale: 0.25
     - _SmoothnessTextureChannel: 0
-    - _SoftFactor: 0.71
+    - _SoftFactor: 3
     - _SpecularHighlights: 1
-    - _Speed: 2.75
+    - _Speed: 2.51
     - _SrcBlend: 1
     - _Steepness: 0.5
     - _UVSec: 0
@@ -102,7 +102,7 @@ Material:
     m_Colors:
     - _Color: {r: 0.286942, g: 0.49176297, b: 0.79622644, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
-    - _FoamColor: {r: 0.28773582, g: 0.9361196, b: 1, a: 1}
+    - _FoamColor: {r: 1, g: 0.87638533, b: 0.8584906, a: 1}
     - _NormalSpeed1: {r: 0.05, g: 0.02, b: 0, a: 0}
     - _NormalSpeed2: {r: -0.03, g: 0.04, b: 0, a: 0}
   m_BuildTextureStacks: []

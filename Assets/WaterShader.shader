@@ -13,7 +13,11 @@ Shader "Custom/WaterShader"
         _Amplitude ("Wave Amplitude", Range(0.1, 1)) = 0.01
         _Speed ("Wave Speed", Range(0.1, 5)) = 0.15
         _NormalStrength ("Normal Strength", Range(0, 1)) = 0.5
-        _SoftFactor("Soft Factor", Range(0.1, 3.0)) = 1.0
+        _SoftFactor ("Soft Factor", Range(0.1, 3.0)) = 1.0
+
+        _FoamColor ("Foam Color", Color) = (1,1,1,1)
+        _FoamThreshold ("Foam Threshold", Range(0, 1)) = 0.5
+        _FoamIntensity ("Foam Intensity", Range(0, 200)) = 1
     }
     SubShader
     {
@@ -36,15 +40,21 @@ Shader "Custom/WaterShader"
         float _NormalStrength;
         float _SoftFactor;
 
+        float _FoamIntensity;
+        float _FoamThreshold;
+
         half _Glossiness;
         half _Metallic;
+
         fixed4 _Color;
+        fixed4 _FoamColor;
 
         struct Input
         {
             float2 uv_NormalTex1;
             float4 screenPos;
             float eyeDepth;
+            float foamFactor;
         };
 
         void vert(inout appdata_full v, out Input o)
@@ -75,6 +85,8 @@ Shader "Custom/WaterShader"
 
             COMPUTE_EYEDEPTH(o.eyeDepth);
             UNITY_INITIALIZE_OUTPUT(Input, o);
+
+            o.foamFactor = saturate(waveSum * 0.5 + 0.5);
         }
 
         void surf (Input IN, inout SurfaceOutputStandard o)
@@ -97,6 +109,16 @@ Shader "Custom/WaterShader"
             float2 normalUV2 = float2(IN.uv_NormalTex1.x, normalUVY);
 
             o.Normal = UnpackNormal((tex2D(_NormalTex1, normalUV1) + tex2D(_NormalTex2, normalUV2)) * _NormalStrength * fade);
+
+            // Foam
+            float noise = tex2D(_NoiseTex, IN.uv_NormalTex1 * 100).r;
+            float foamMask = saturate((IN.foamFactor - _FoamThreshold) * _FoamIntensity);
+            foamMask *= noise;
+
+            // Mix base and foam color based on foam mask
+            fixed3 baseColor = _Color.rgb;
+            fixed3 foamColor = _FoamColor.rgb;
+            o.Albedo = lerp(baseColor, foamColor, foamMask);
         }
         ENDCG
     }
