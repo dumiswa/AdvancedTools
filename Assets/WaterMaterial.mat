@@ -78,8 +78,9 @@ Material:
     - _Cutoff: 0.5
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
-    - _FoamIntensity: 6
-    - _FoamThreshold: 0.53
+    - _FoamIntensity: 1
+    - _FoamThreshold: 1
+    - _FoamWidth: 1.07
     - _Frequency: 1
     - _GlossMapScale: 1
     - _Glossiness: 1
@@ -89,7 +90,7 @@ Material:
     - _NormalStrength: 0.3
     - _OcclusionStrength: 1
     - _Parallax: 0.02
-    - _Scale: 0.25
+    - _Scale: 0.1
     - _SmoothnessTextureChannel: 0
     - _SoftFactor: 3
     - _SpecularHighlights: 1
@@ -102,7 +103,7 @@ Material:
     m_Colors:
     - _Color: {r: 0.286942, g: 0.49176297, b: 0.79622644, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
-    - _FoamColor: {r: 1, g: 0.87638533, b: 0.8584906, a: 1}
+    - _FoamColor: {r: 0.7028302, g: 0.84559214, b: 1, a: 1}
     - _NormalSpeed1: {r: 0.05, g: 0.02, b: 0, a: 0}
     - _NormalSpeed2: {r: -0.03, g: 0.04, b: 0, a: 0}
   m_BuildTextureStacks: []

@@ -16,17 +16,18 @@ Shader "Custom/WaterShader"
         _SoftFactor ("Soft Factor", Range(0.1, 3.0)) = 1.0
 
         _FoamColor ("Foam Color", Color) = (1,1,1,1)
-        _FoamThreshold ("Foam Threshold", Range(0, 1)) = 0.5
-        _FoamIntensity ("Foam Intensity", Range(0, 200)) = 1
+        _FoamThreshold ("Foam Threshold", Range(0.1, 1)) = 0.2
+        _FoamIntensity ("Foam Intensity", Range(0, 1)) = 1
+        _FoamWidth ("Foam Width", Range(0, 10)) = 1
     }
+
     SubShader
     {
-        Tags { "RenderType"="Opaque" "ForceNoShadowCasting" = "True"}
+        Tags { "RenderType"="Opaque" "ForceNoShadowCasting" = "True" }
         LOD 200
 
         CGPROGRAM
         #pragma surface surf Standard fullforwardshadows alpha vertex:vert
-
         #pragma target 3.0
 
         sampler2D _NormalTex1;
@@ -42,10 +43,10 @@ Shader "Custom/WaterShader"
 
         float _FoamIntensity;
         float _FoamThreshold;
+        float _FoamWidth;
 
         half _Glossiness;
         half _Metallic;
-
         fixed4 _Color;
         fixed4 _FoamColor;
 
@@ -54,23 +55,19 @@ Shader "Custom/WaterShader"
             float2 uv_NormalTex1;
             float4 screenPos;
             float eyeDepth;
-            float foamFactor;
         };
 
         void vert(inout appdata_full v, out Input o)
         {
             float3 worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
             float waveSum = 0.0;
-
             int waveCount = 6;
+
             for (int i = 0; i < waveCount; ++i)
             {
-                // Pseudo-random per-wave direction
-                float angle = i * 2.39996; // golden angle in radians (to break symmetry)
+                float angle = i * 2.39996;
                 float2 dir = float2(cos(angle), sin(angle));
-
-                // Per-wave frequency, phase, and speed modulation
-                float freq = 1.0 + frac(sin(i * 57.3) * 43758.5453) * 1.0;
+                float freq = 1.0 + frac(sin(i * 57.3) * 43758.5453);
                 float phaseOffset = i * 1.23;
                 float speedOffset = 0.8 + frac(cos(i * 91.7) * 23421.123) * 0.5;
 
@@ -83,44 +80,42 @@ Shader "Custom/WaterShader"
             waveSum /= waveCount;
             v.vertex.y += waveSum * _Amplitude;
 
-            COMPUTE_EYEDEPTH(o.eyeDepth);
             UNITY_INITIALIZE_OUTPUT(Input, o);
-
-            o.foamFactor = saturate(waveSum * 0.5 + 0.5);
+            COMPUTE_EYEDEPTH(o.eyeDepth);
         }
 
-        void surf (Input IN, inout SurfaceOutputStandard o)
+        void surf(Input IN, inout SurfaceOutputStandard o)
         {
+            // Base lighting
             o.Albedo = _Color.rgb;
             o.Metallic = _Metallic;
             o.Smoothness = _Glossiness;
 
-            // Depth
+            // Depth fade
             float rawZ = SAMPLE_DEPTH_TEXTURE_PROJ(_CameraDepthTexture, UNITY_PROJ_COORD(IN.screenPos));
             float sceneZ = LinearEyeDepth(rawZ);
-            float partZ = IN.eyeDepth;
-            float fade = saturate(_SoftFactor * (sceneZ - partZ));  
+            float waterZ = IN.eyeDepth;
+            float fade = saturate(_SoftFactor * (sceneZ - waterZ));
             o.Alpha = fade * 0.5;
 
-            //Normal Maps
+            // Normal maps
             float normalUVX = IN.uv_NormalTex1.x + _Time.y * 0.05;
             float normalUVY = IN.uv_NormalTex1.y + _Time.y * 0.03;
             float2 normalUV1 = float2(normalUVX, IN.uv_NormalTex1.y);
             float2 normalUV2 = float2(IN.uv_NormalTex1.x, normalUVY);
-
             o.Normal = UnpackNormal((tex2D(_NormalTex1, normalUV1) + tex2D(_NormalTex2, normalUV2)) * _NormalStrength * fade);
 
-            // Foam
-            float noise = tex2D(_NoiseTex, IN.uv_NormalTex1 * 100).r;
-            float foamMask = saturate((IN.foamFactor - _FoamThreshold) * _FoamIntensity);
-            foamMask *= noise;
+            // Intersection foam only
+            float depthDiff = sceneZ - waterZ;
+            //float foamMask = saturate((_FoamThreshold - depthDiff) * _FoamIntensity);
+            //foamMask *= tex2D(_NoiseTex, IN.uv_NormalTex1 * 6.0).r;
+            float foamMask = smoothstep(_FoamThreshold + _FoamWidth, _FoamThreshold, depthDiff);
 
-            // Mix base and foam color based on foam mask
-            fixed3 baseColor = _Color.rgb;
-            fixed3 foamColor = _FoamColor.rgb;
-            o.Albedo = lerp(baseColor, foamColor, foamMask);
+            // Blend foam
+            o.Albedo = lerp(o.Albedo, _FoamColor.rgb, foamMask);
         }
         ENDCG
     }
+
     FallBack "Diffuse"
 }
