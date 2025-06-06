@@ -15,16 +15,23 @@ Shader "Custom/WaterShader"
         _NormalStrength ("Normal Strength", Range(0, 1)) = 0.5
         _SoftFactor ("Soft Factor", Range(0.1, 3.0)) = 1.0
 
+        _ShallowColor ("Shallow Water Color", Color) = (0.2, 0.6, 0.8, 1)
+        _DeepColor ("Deep Water Color", Color) = (0.0, 0.2, 0.4, 1)
+        _DepthColorDistance ("Depth Blend Distance", Range(0.1, 10)) = 3.0
+
         _FoamColor ("Foam Color", Color) = (1,1,1,1)
         _FoamThreshold ("Foam Threshold", Range(0.1, 1)) = 0.2
         _FoamIntensity ("Foam Intensity", Range(0, 1)) = 1
         _FoamWidth ("Foam Width", Range(0, 10)) = 1
+
+        _RefractionStrength("Refraction Strength", Range(0, 1)) = 0.1
     }
 
     SubShader
     {
         Tags { "RenderType"="Opaque" "ForceNoShadowCasting" = "True" }
         LOD 200
+        GrabPass { "_RefractionTex" }
 
         CGPROGRAM
         #pragma surface surf Standard fullforwardshadows alpha vertex:vert
@@ -34,6 +41,11 @@ Shader "Custom/WaterShader"
         sampler2D _NormalTex2;
         sampler2D _NoiseTex;
         sampler2D _CameraDepthTexture;
+
+        sampler2D _RefractionTex;
+        float4 _RefractionTex_TexelSize;
+        float _RefractionStrength;
+
 
         float _Scale;
         float _Amplitude;
@@ -49,6 +61,10 @@ Shader "Custom/WaterShader"
         half _Metallic;
         fixed4 _Color;
         fixed4 _FoamColor;
+
+        fixed4 _ShallowColor;
+        fixed4 _DeepColor;
+        float _DepthColorDistance;
 
         struct Input
         {
@@ -97,6 +113,9 @@ Shader "Custom/WaterShader"
             float waterZ = IN.eyeDepth;
             float fade = saturate(_SoftFactor * (sceneZ - waterZ));
             o.Alpha = fade * 0.5;
+            float depthBlend = saturate((sceneZ - waterZ) / _DepthColorDistance);
+            float3 depthColor = lerp(_ShallowColor.rgb, _DeepColor.rgb, depthBlend);
+            o.Albedo = depthColor;
 
             // Normal maps
             float normalUVX = IN.uv_NormalTex1.x + _Time.y * 0.05;
@@ -104,6 +123,7 @@ Shader "Custom/WaterShader"
             float2 normalUV1 = float2(normalUVX, IN.uv_NormalTex1.y);
             float2 normalUV2 = float2(IN.uv_NormalTex1.x, normalUVY);
             o.Normal = UnpackNormal((tex2D(_NormalTex1, normalUV1) + tex2D(_NormalTex2, normalUV2)) * _NormalStrength * fade);
+
 
             // Intersection foam only
             float depthDiff = sceneZ - waterZ;
@@ -113,6 +133,8 @@ Shader "Custom/WaterShader"
 
             // Blend foam
             o.Albedo = lerp(o.Albedo, _FoamColor.rgb, foamMask);
+
+
         }
         ENDCG
     }
