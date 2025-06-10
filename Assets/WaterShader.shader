@@ -10,7 +10,7 @@ Shader "Custom/WaterShader"
         _Metallic ("Metallic", Range(0,1)) = 0.0
         _Scale ("Noise scale", Range(0.1,1)) = 1
         _Amplitude ("Wave Amplitude", Range(0.1,1)) = 0.01
-        _Speed ("Wave Speed", Range(0.1,5)) = 0.15
+        _Speed ("Wave Speed", Range(0.1,100)) = 0.15
         _NormalStrength ("Normal Strength", Range(0,1)) = 0.5
 
         _ShallowColor ("Shallow Water Color", Color) = (0.2,0.6,0.8,1)
@@ -24,7 +24,10 @@ Shader "Custom/WaterShader"
         _FoamIntensity ("Foam Intensity", Range(0,1)) = 1
         _FoamWidth ("Foam Width", Range(0,10)) = 1
 
-        _RefractionStrength ("Refraction Strength", Range(0,1)) = 0.1
+        _RefractionStrength ("Refraction Strength", Range(0,10)) = 0.1
+        _BlendingStrength ("Blending Strength", Range(0,1)) = 0.1
+
+        _RefractionsTexture ("Refractions Texture", 2D) = "bump" {}
     }
 
     SubShader
@@ -37,7 +40,7 @@ Shader "Custom/WaterShader"
         #pragma target 3.0
         #pragma surface surf Standard fullforwardshadows alpha vertex:vert
 
-        sampler2D _NormalTex1,_NormalTex2,_NoiseTex,_CameraDepthTexture;
+        sampler2D _NormalTex1,_NormalTex2,_NoiseTex,_CameraDepthTexture, _RefractionTex, _RefractionsTexture;
 
         float _Scale,_Amplitude,_Speed,_NormalStrength;
         half  _Glossiness,_Metallic;
@@ -45,6 +48,8 @@ Shader "Custom/WaterShader"
         fixed4 _ShallowColor,_DeepColor;
         float _DepthColorDistance,_DepthFadeStrength;
         float _FoamIntensity,_FoamThreshold,_FoamWidth;
+        float _RefractionStrength;
+        float _BlendingStrength;
 
         struct Input
         {
@@ -58,16 +63,17 @@ Shader "Custom/WaterShader"
             float3 wp=mul(unity_ObjectToWorld,v.vertex).xyz;
             float s=0;
             for(int i=0;i<6;++i){
-                float a=i*2.39996;
+                float a=i;
                 float2 d=float2(cos(a),sin(a));
-                float f=1+frac(sin(i*57.3)*43758.5453);
-                float po=i*1.23;
-                float so=0.8+frac(cos(i*91.7)*23421.123)*0.5;
+                float f=frac(sin(i));
+                float po=i;
+                float so=frac(cos(i));
                 s+=sin(dot(wp.xz,d)*_Scale*f+(_Time.y+po)*_Speed*so);
             }
             v.vertex.y+=s/6*_Amplitude;
             UNITY_INITIALIZE_OUTPUT(Input,o);
             COMPUTE_EYEDEPTH(o.eyeDepth);
+            //float3 worldPos;
         }
 
         void surf(Input IN,inout SurfaceOutputStandard o)
@@ -75,9 +81,14 @@ Shader "Custom/WaterShader"
             float rawZ=SAMPLE_DEPTH_TEXTURE_PROJ(_CameraDepthTexture,UNITY_PROJ_COORD(IN.screenPos));
             float sceneZ=LinearEyeDepth(rawZ);
             float waterZ=IN.eyeDepth;
-            float depthDiff=sceneZ-waterZ;
+            //float depthDiff=sceneZ-waterZ;
+            float depthDiff = max(0.0, sceneZ - waterZ);
 
-            o.Alpha=saturate(depthDiff*_DepthFadeStrength);
+            //o.Alpha=saturate(depthDiff*_DepthFadeStrength);
+            float fade = smoothstep(0.0, _DepthColorDistance * 0.5, depthDiff);
+            float2 screenUV = IN.screenPos.xy / IN.screenPos.w;
+            o.Alpha = fade * _DepthFadeStrength;
+            //o.Alpha = fade * _DepthFadeStrength;
 
             float depthBlend=saturate(depthDiff/_DepthColorDistance);
             o.Albedo=lerp(_ShallowColor.rgb,_DeepColor.rgb,depthBlend);
@@ -91,6 +102,25 @@ Shader "Custom/WaterShader"
 
             float foamMask=smoothstep(_FoamThreshold+_FoamWidth,_FoamThreshold,depthDiff)*_FoamIntensity;
             o.Albedo=lerp(o.Albedo,_FoamColor.rgb,foamMask);
+
+            
+            // ====== Refraction Section ======
+            float2 refractionUV = IN.uv_NormalTex1 * _Scale + float2(_Time.x * _Speed, _Time.y * _Speed);
+
+            // Sample distortion from the refraction texture (use red & green channels)
+            float2 distortion = tex2D(_RefractionsTexture, refractionUV).rg * 2.0 - 1.0;
+
+            // Apply strength and distortion to screen-space UVs
+            distortion *= _RefractionStrength;
+           //loat2 screenUV = IN.screenPos.xy / IN.screenPos.w;
+            distortion.y = abs(distortion.y);
+            float2 distortedUV = screenUV + distortion * 0.01;
+
+            // Sample the background scene color through distortion
+            float3 refractedColor = tex2D(_RefractionTex, distortedUV).rgb;
+
+            // Blend with the water surface color
+            o.Albedo = lerp(refractedColor, o.Albedo, _BlendingStrength);
         }
         ENDCG
     }
