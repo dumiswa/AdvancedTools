@@ -33,7 +33,7 @@ public class WaterMeshGenerator : MonoBehaviour
                 float worldX = x * spacing - halfSize;
                 float worldZ = z * spacing - halfSize;
 
-                vertices[i] = new Vector3(worldX, 0, worldZ);
+                vertices[i] = new Vector3(worldX, -4.5f, worldZ);
                 uvs[i] = new Vector2((float)x / (verticesPerLine - 1), (float)z / (verticesPerLine - 1));
 
                 if (x < verticesPerLine - 1 && z < verticesPerLine - 1)

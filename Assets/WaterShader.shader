@@ -104,7 +104,7 @@ Shader "Custom/WaterShader"
             o.Albedo=lerp(o.Albedo,_FoamColor.rgb,foamMask);
 
             
-            // ====== Refraction Section ======
+            //  Refraction Section 
             float2 refractionUV = IN.uv_NormalTex1 * _Scale + float2(_Time.x * _Speed, _Time.y * _Speed);
 
             // Sample distortion from the refraction texture (use red & green channels)
@@ -112,7 +112,7 @@ Shader "Custom/WaterShader"
 
             // Apply strength and distortion to screen-space UVs
             distortion *= _RefractionStrength;
-           //loat2 screenUV = IN.screenPos.xy / IN.screenPos.w;
+            //loat2 screenUV = IN.screenPos.xy / IN.screenPos.w;
             distortion.y = abs(distortion.y);
             float2 distortedUV = screenUV + distortion * 0.01;
 
